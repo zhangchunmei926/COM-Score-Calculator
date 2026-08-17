@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COM 评分计算器</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 950px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a3c5e;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        .hint {
+            font-size: 11px;
+            color: #999;
+            font-weight: normal;
+        }
+        input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1.5px solid #d0d7de;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.2s;
+            background: #fafbfc;
+            box-sizing: border-box;
+        }
+        input:focus {
+            border-color: #1a73e8;
+            outline: none;
+            background: white;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            margin: 18px 0 10px;
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.01);
+            box-shadow: 0 4px 16px rgba(26,115,232,0.4);
+        }
+        .btn:active { transform: scale(0.98); }
+        .result-area {
+            margin-top: 20px;
+            padding: 24px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            display: none;
+        }
+        .score-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .score-big {
+            font-size: 42px;
+            font-weight: 800;
+            color: #1a3c5e;
+        }
+        .score-max {
+            font-size: 20px;
+            color: #999;
+        }
+        .risk-badge {
+            font-size: 22px;
+            font-weight: 700;
+            padding: 8px 24px;
+            border-radius: 30px;
+        }
+        .risk-low { background: #c8e6c9; color: #1e5a2a; }
+        .risk-moderate { background: #fff3e0; color: #b85c00; }
+        .risk-high { background: #ffcdd2; color: #a0152e; }
+        .risk-veryhigh { background: #8e0000; color: white; }
+        .prob-text { font-size: 28px; font-weight: 700; color: #1a3c5e; }
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 10px;
+            margin: 6px 0 12px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 20px;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .detail-item .val { font-weight: 600; color: #1a3c5e; }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a3c5e;
+            margin: 16px 0 8px;
+            border-bottom: 2px solid #1a73e8;
+            padding-bottom: 4px;
+        }
+        .shap-container { margin-top: 12px; }
+        .footnote {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            border-top: 1px solid #eee;
+            padding-top: 16px;
+        }
+        .sofa-compare {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .sofa-card {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .sofa-card .label { font-size: 13px; color: #555; }
+        .sofa-card .value { font-size: 26px; font-weight: 700; }
+        .sofa-card .note { font-size: 12px; color: #888; }
+        .sofa-blue { background: #e8f0fe; }
+        .sofa-blue .value { color: #1a73e8; }
+        .sofa-red { background: #fce4ec; }
+        .sofa-red .value { color: #c62828; }
+        .sofa-green { background: #e8f5e9; }
+        .sofa-green .value { color: #2e7d32; }
+        .advice-box {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: #fff8e1;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #795548;
+        }
+        @media (max-width: 700px) {
+            .grid-2, .grid-3 { grid-template-columns: 1fr; }
+            .score-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>🩺 COM 评分计算器</h1>
+    <p class="subtitle">Circulation · Oxygenation · Metabolism &nbsp;|&nbsp; 28天死亡率预测工具</p>
+
+    <!-- ===== 输入区 ===== -->
+    <div class="grid-2">
+        <div>
+            <label>ln_vis_score <span class="hint">(血管活性药物评分对数)</span></label>
+            <input type="number" id="ln_vis" value="2" step="0.5" min="0" max="12">
+        </div>
+        <div>
+            <label>24小时尿量 <span class="hint">(mL)</span></label>
+            <input type="number" id="urine" value="1500" min="0" max="6000">
+        </div>
+    </div>
+
+    <label style="margin-top:6px;">最差氧合指数 <span class="hint">(PaO₂/FiO₂)</span></label>
+    <input type="number" id="pf" value="150" min="0" max="500">
+
+    <div class="grid-3">
+        <div>
+            <label>血钾最低值 <span class="hint">(mmol/L)</span></label>
+            <input type="number" id="k_min" value="3.8" step="0.1" min="1.5" max="7">
+        </div>
+        <div>
+            <label>血钾最高值 <span class="hint">(mmol/L)</span></label>
+            <input type="number" id="k_max" value="4.5" step="0.1" min="1.5" max="7">
+        </div>
+        <div>
+            <label>血糖最高值 <span class="hint">(mg/dL)</span></label>
+            <input type="number" id="glu_max" value="150" min="20" max="600">
+        </div>
+    </div>
+
+    <label style="margin-top:6px;">血糖最低值 <span class="hint">(mg/dL)</span></label>
+    <input type="number" id="glu_min" value="100" min="10" max="500">
+
+    <button class="btn" onclick="calc()">📊 计算风险</button>
+
+    <!-- ===== 结果区 ===== -->
+    <div class="result-area" id="result">
+
+        <div class="score-row">
+            <div>
+                <span style="font-size:14px;color:#666;">COM 评分</span>
+                <div><span class="score-big" id="score_display">0</span><span class="score-max"> / 24</span></div>
+            </div>
+            <div>
+                <span style="font-size:14px;color:#666;">风险等级</span>
+                <div><span class="risk-badge" id="level_display">低危</span></div>
+            </div>
+        </div>
+
+        <!-- 进度条 -->
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress_fill" style="width:0%;"></div>
+        </div>
+
+        <!-- 预测概率 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top:8px;">
+            <div>
+                <span style="font-size:14px;color:#666;">预测 28 天死亡率</span>
+                <div class="prob-text" id="risk_display">—</div>
+            </div>
+            <div style="text-align:right; font-size:13px; color:#888;">
+                95% CI: <span id="ci_display">—</span>
+            </div>
+        </div>
+
+        <!-- ===== 赋分明细 ===== -->
+        <div class="section-title">📋 各变量赋分明细</div>
+        <div class="detail-grid" id="detail_grid">
+            <div class="detail-item"><span>ln_vis_score</span><span class="val" id="d_vis">0</span></div>
+            <div class="detail-item"><span>尿量</span><span class="val" id="d_urine">0</span></div>
+            <div class="detail-item"><span>氧合指数</span><span class="val" id="d_pf">0</span></div>
+            <div class="detail-item"><span>低钾 (min)</span><span class="val" id="d_kmin">0</span></div>
+            <div class="detail-item"><span>高钾 (max)</span><span class="val" id="d_kmax">0</span></div>
+            <div class="detail-item"><span>低血糖 (min)</span><span class="val" id="d_glumin">0</span></div>
+            <div class="detail-item"><span>高血糖 (max)</span><span class="val" id="d_glumax">0</span></div>
+        </div>
+
+        <!-- ===== SHAP 瀑布图 ===== -->
+        <div class="section-title" style="margin-top:20px;">📈 变量贡献度 (SHAP 值)</div>
+        <div class="shap-container" id="shap_plot" style="height:280px;"></div>
+
+        <!-- ===== 与 SOFA 对比 ===== -->
+        <div class="section-title" style="margin-top:16px;">⚖️ 与 SOFA 评分对比</div>
+        <div class="sofa-compare">
+            <div class="sofa-card sofa-blue">
+                <div class="label">COM 评分</div>
+                <div class="value" id="com_auc_display">0.779</div>
+                <div class="note">AUC 0.7791</div>
+            </div>
+            <div class="sofa-card sofa-red">
+                <div class="label">SOFA 评分</div>
+                <div class="value" id="sofa_auc_display">0.778</div>
+                <div class="note">AUC 0.7782</div>
+            </div>
+            <div class="sofa-card sofa-green">
+                <div class="label">COM vs SOFA</div>
+                <div class="value">P = 0.879</div>
+                <div class="note">无显著差异</div>
+            </div>
+        </div>
+
+        <div class="advice-box">
+            💡 <b>临床建议：</b> <span id="clinical_advice">常规治疗，密切观察</span>
+        </div>
+    </div>
+
+    <div class="footnote">
+        ⚕️ 本工具基于 MIMIC-IV 数据库 (n=9,423) 开发，仅供研究参考，不能替代临床判断。
+        <br>COM 评分 = Circulation · Oxygenation · Metabolism
+    </div>
+</div>
+
+<script>
+function calc() {
+    // ----- 读取输入 -----
+    const ln_vis = parseFloat(document.getElementById('ln_vis').value) || 0;
+    const urine = parseFloat(document.getElementById('urine').value) || 0;
+    const pf = parseFloat(document.getElementById('pf').value) || 0;
+    const k_min = parseFloat(document.getElementById('k_min').value) || 0;
+    const k_max = parseFloat(document.getElementById('k_max').value) || 0;
+    const glu_min = parseFloat(document.getElementById('glu_min').value) || 0;
+    const glu_max = parseFloat(document.getElementById('glu_max').value) || 0;
+
+    // ----- 计算评分（24分制）-----
+    let s = 0;
+    let d_vis = 0, d_urine = 0, d_pf = 0;
+    let d_kmin = 0, d_kmax = 0, d_glumin = 0, d_glumax = 0;
+
+    // ln_vis_score（8分）
+    if (ln_vis > 2) { s += 2; d_vis += 2; }
+    if (ln_vis > 4) { s += 2; d_vis += 2; }
+    if (ln_vis > 6) { s += 2; d_vis += 2; }
+    if (ln_vis > 8) { s += 2; d_vis += 2; }
+
+    // urine_output_24h（3分，U型）
+    if (urine < 500) { s += 3; d_urine += 3; }
+    else if (urine < 1000) { s += 2; d_urine += 2; }
+    else if (urine >= 3000) { s += 1; d_urine += 1; }
+
+    // worst_pf_ratio（3分）
+    if (pf < 100) { s += 3; d_pf += 3; }
+    else if (pf < 200) { s += 2; d_pf += 2; }
+    else if (pf < 300) { s += 1; d_pf += 1; }
+
+    // potassium_min（2分）
+    if (k_min < 3.0) { s += 2; d_kmin += 2; }
+    else if (k_min < 3.5) { s += 1; d_kmin += 1; }
+
+    // potassium_max（2分）
+    if (k_max > 5.5) { s += 2; d_kmax += 2; }
+    else if (k_max > 5.0) { s += 1; d_kmax += 1; }
+
+    // glucose_min（2分）
+    if (glu_min < 50) { s += 2; d_glumin += 2; }
+    else if (glu_min < 70) { s += 1; d_glumin += 1; }
+
+    // glucose_max（2分）
+    if (glu_max > 300) { s += 2; d_glumax += 2; }
+    else if (glu_max > 180) { s += 1; d_glumax += 1; }
+
+    // ----- 风险分层 -----
+    let level, levelClass, mortality, advice, pct, ci_low, ci_high;
+    if (s <= 4) {
+        level = '低危'; levelClass = 'risk-low';
+        mortality = '~4%'; advice = '常规治疗，密切观察';
+        pct = 4; ci_low = 2.5; ci_high = 6.0;
+    } else if (s <= 9) {
+        level = '中危'; levelClass = 'risk-moderate';
+        mortality = '~14%'; advice = '加强监测，考虑早期干预';
+        pct = 14; ci_low = 11.5; ci_high = 17.5;
+    } else if (s <= 14) {
+        level = '高危'; levelClass = 'risk-high';
+        mortality = '~37%'; advice = '考虑升级治疗，多学科协作';
+        pct = 37; ci_low = 32.0; ci_high = 42.0;
+    } else {
+        level = '极高危'; levelClass = 'risk-veryhigh';
+        mortality = '~61%'; advice = '积极抢救，多学科协作';
+        pct = 61; ci_low = 55.0; ci_high = 67.0;
+    }
+
+    // ----- 显示评分 -----
+    document.getElementById('score_display').textContent = s;
+    document.getElementById('level_display').textContent = level;
+    document.getElementById('level_display').className = 'risk-badge ' + levelClass;
+    document.getElementById('risk_display').textContent = mortality;
+    document.getElementById('ci_display').textContent = ci_low + '% – ' + ci_high + '%';
+    document.getElementById('progress_fill').style.width = Math.min(pct, 100) + '%';
+    document.getElementById('clinical_advice').textContent = advice;
+
+    // ----- 赋分明细 -----
+    document.getElementById('d_vis').textContent = d_vis;
+    document.getElementById('d_urine').textContent = d_urine;
+    document.getElementById('d_pf').textContent = d_pf;
+    document.getElementById('d_kmin').textContent = d_kmin;
+    document.getElementById('d_kmax').textContent = d_kmax;
+    document.getElementById('d_glumin').textContent = d_glumin;
+    document.getElementById('d_glumax').textContent = d_glumax;
+
+    // ----- SHAP 瀑布图 -----
+    const shapData = [
+        { var: 'ln_vis_score', shap: 0.8223 },
+        { var: 'urine_output_24h', shap: 0.4288 },
+        { var: 'potassium_max', shap: 0.2692 },
+        { var: 'glucose_max', shap: 0.2686 },
+        { var: 'worst_pf_ratio', shap: 0.2316 },
+        { var: 'potassium_min', shap: 0.1611 },
+        { var: 'glucose_min', shap: 0.1346 }
+    ];
+    shapData.sort((a, b) => b.shap - a.shap);
+
+    const trace = {
+        x: shapData.map(d => d.shap),
+        y: shapData.map(d => d.var),
+        orientation: 'h',
+        type: 'bar',
+        marker: {
+            color: shapData.map(d => d.shap > 0.2 ? '#1a73e8' : '#ff6d00'),
+            opacity: 0.85
+        },
+        text: shapData.map(d => d.shap.toFixed(4)),
+        textposition: 'outside',
+        hovertemplate: '%{y}: %{x:.4f}<extra></extra>',
+        name: 'SHAP value'
+    };
+    const layout = {
+        margin: { l: 130, r: 60, t: 20, b: 20 },
+        xaxis: { title: 'SHAP value (mean |SHAP|)', gridcolor: '#eee' },
+        yaxis: { autorange: 'reversed', gridcolor: '#eee' },
+        height: 260,
+        bargap: 0.3,
+        plot_bgcolor: 'white',
+        paper_bgcolor: 'white',
+        font: { size: 12, family: 'Segoe UI, Arial' }
+    };
+    Plotly.react('shap_plot', [trace], layout, { responsive: true, displayModeBar: false });
+
+    // ----- 显示结果 -----
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
